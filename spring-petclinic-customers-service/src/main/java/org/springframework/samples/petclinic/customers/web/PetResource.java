@@ -99,6 +99,12 @@ class PetResource {
         petRepository.findPetTypeById(petRequest.getTypeId())
             .ifPresent(pet::setType);
 
+        // Monkey Patched - Please check
+        // Start Monkey Patch
+        String petConcerns = bedrockService.getConcernsForPetType(pet.getType().getName());
+        log.info("Pet concerns: {}", petConcerns);
+        // End Monkey Patch
+
         log.info("Saving pet {}", pet);
         return petRepository.save(pet);
     }

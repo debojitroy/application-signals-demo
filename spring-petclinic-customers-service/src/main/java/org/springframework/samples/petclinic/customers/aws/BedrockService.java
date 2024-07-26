@@ -4,8 +4,9 @@ package org.springframework.samples.petclinic.customers.aws;
 
 import org.json.JSONObject;
 import org.json.JSONPointer;
+import org.springframework.samples.petclinic.customers.Util;
 import org.springframework.stereotype.Component;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
@@ -19,10 +20,17 @@ public class BedrockService {
     final BedrockRuntimeClient bedrockClient;
 
     public BedrockService() {
-        bedrockClient = BedrockRuntimeClient.builder()
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .region(Region.US_EAST_1)
-                .build();
+        // AWS web identity is set for EKS clusters, if these are not set then use default credentials
+        if (System.getenv("AWS_WEB_IDENTITY_TOKEN_FILE") == null && System.getProperty("aws.webIdentityTokenFile") == null) {
+            bedrockClient = BedrockRuntimeClient.builder()
+                    .region(Region.of(Util.REGION_FROM_EC2))
+                    .build();
+        } else {
+            bedrockClient = BedrockRuntimeClient.builder()
+                    .region(Region.of(Util.REGION_FROM_EKS))
+                    .credentialsProvider(WebIdentityTokenFileCredentialsProvider.create())
+                    .build();
+        }
     }
 
     public String getConcernsForPetType(String petType) {
@@ -50,5 +58,12 @@ public class BedrockService {
             System.err.printf("ERROR: Can't invoke '%s'. Reason: %s", modelId, e.getMessage());
             return "Error retrieving typical issues with " + petType;
         }
+    }
+
+    public static void main(String[] args) {
+        BedrockService service = new BedrockService();
+        String resp = service.getConcernsForPetType("123");
+        System.out.println("resp:" + resp);
+
     }
 }
